@@ -105,3 +105,5 @@ class Register {
     this.updateMerkleRoot();
   }
 }
+
+module.exports = Register;
