@@ -152,6 +152,77 @@ app.post('/api/register/verify-proof', (req, res) => {
   res.json({ valid });
 });
 
+// Add a new entry to the register if the proof is valid
+app.post('/api/register/add-entry', (req, res) => {
+  const { entry, proof, merkleRoot } = req.body;
+  if (!entry || !proof || !merkleRoot) {
+    return res.status(400).json({ error: 'Missing entry, proof, or merkleRoot' });
+  }
+  const { MerkleTree } = require('merkletreejs');
+  const keccak256 = require('keccak256');
+  const { getLeaf } = require('./merkleUtil');
+  const leaf = getLeaf(entry);
+  const valid = MerkleTree.verify(proof, leaf, merkleRoot, keccak256, { sortPairs: true });
+  if (!valid) {
+    return res.status(400).json({ error: 'Invalid Merkle proof' });
+  }
+  // Only add if not already present
+  if (register.issuedCerts.has(entry.fingerprint)) {
+    return res.status(409).json({ error: 'Entry already exists' });
+  }
+  register.issuedCerts.set(entry.fingerprint, entry);
+  register.updateMerkleTree();
+  res.json({ status: 'added', fingerprint: entry.fingerprint });
+});
+
+// Federation: notify peers and reach quorum on new CA
+// This is a stub for federation logic. In production, use a message queue or pub/sub system.
+const peers = process.env.PEER_NODES ? process.env.PEER_NODES.split(',') : [];
+// Quorum logic for federation
+const QUORUM = process.env.PEER_QUORUM ? parseInt(process.env.PEER_QUORUM, 10) : peers.length + 1;
+const quorumAcks = new Map(); // fingerprint -> Set of peer URLs that acknowledged
+
+// Enhance notifyPeersOfNewEntry to track acknowledgments
+global.notifyPeersOfNewEntry = async function(entry, proof, merkleRoot) {
+  const payload = JSON.stringify({ entry, proof, merkleRoot });
+  const fingerprint = entry.fingerprint;
+  if (!quorumAcks.has(fingerprint)) quorumAcks.set(fingerprint, new Set());
+  // Add self-ack
+  quorumAcks.get(fingerprint).add('self');
+  for (const peer of peers) {
+    try {
+      const res = await fetch(`${peer}/api/register/add-entry`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: payload
+      });
+      const data = await res.json();
+      if (data.status === 'added' || data.status === 'exists') {
+        quorumAcks.get(fingerprint).add(peer);
+      }
+    } catch (err) {
+      console.error(`Error notifying peer ${peer}:`, err);
+    }
+  }
+  // Check for quorum
+  if (quorumAcks.get(fingerprint).size >= QUORUM) {
+    console.log(`Quorum reached for CA ${fingerprint}:`, Array.from(quorumAcks.get(fingerprint)));
+  } else {
+    console.log(`Waiting for quorum for CA ${fingerprint}:`, Array.from(quorumAcks.get(fingerprint)));
+  }
+};
+
+// Call this after a new cert is issued
+const originalLogIssuedCert = register.logIssuedCert.bind(register);
+register.logIssuedCert = async function(args) {
+  const entry = originalLogIssuedCert(args);
+  const { getLeaf } = require('./merkleUtil');
+  const leaf = getLeaf(entry);
+  const proof = register.merkleTree.getHexProof(leaf);
+  await global.notifyPeersOfNewEntry(entry, proof, register.merkleRoot);
+  return entry;
+};
+
 // Start server
 app.listen(PORT, () => {
   console.log(`HNCA CA server running on port ${PORT}`);
