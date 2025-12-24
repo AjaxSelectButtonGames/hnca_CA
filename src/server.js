@@ -10,7 +10,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Initialize the Register (in-memory for now)
-const registerKeyPair = Register.generateKeyPair();
+const registerKeyPair = certUtil.generateKeyPair();
 const register = new Register({
   name: 'HNCA Register 1',
   publicKey: registerKeyPair.publicKey,
