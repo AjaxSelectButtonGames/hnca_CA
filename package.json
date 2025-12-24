@@ -7,11 +7,19 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js"
   },
-  "keywords": ["certificate authority", "hnca", "ca", "nodejs", "federation"],
+  "keywords": [
+    "certificate authority",
+    "hnca",
+    "ca",
+    "nodejs",
+    "federation"
+  ],
   "author": "AjaxSelectButtonGames",
   "license": "MIT",
   "dependencies": {
-    "express": "^4.18.2"
+    "express": "^4.18.2",
+    "keccak256": "^1.0.6",
+    "merkletreejs": "^0.6.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.0"

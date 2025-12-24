@@ -16,18 +16,18 @@ npm install
 ```
 npm start
 ```
-The server should run on port 3000 by default.
+The server should run on port 4000 by default.
 
 ## 4. Health Check
 Test the health endpoint:
 ```
-curl http://localhost:3000/health
+curl http://localhost:4000/health
 ```
 Expected output: `{ "status": "ok", ... }`
 
 ## 5. Issue a User Certificate
 ```
-curl -X POST http://localhost:3000/api/certificates/issue \
+curl -X POST http://localhost:4000/api/certificates/issue \
   -H 'Content-Type: application/json' \
   -d '{
     "type": "user",
@@ -43,7 +43,7 @@ You should receive a JSON response with PEM-encoded certificate, private key, an
 
 ## 6. Issue a Website Certificate
 ```
-curl -X POST http://localhost:3000/api/certificates/issue \
+curl -X POST http://localhost:4000/api/certificates/issue \
   -H 'Content-Type: application/json' \
   -d '{
     "type": "website",
@@ -59,13 +59,13 @@ curl -X POST http://localhost:3000/api/certificates/issue \
 
 ## 7. Export Register Snapshot (Federation)
 ```
-curl http://localhost:3000/api/register/snapshot
+curl http://localhost:4000/api/register/snapshot
 ```
 
 ## 8. Import a Register Snapshot
 Save a snapshot JSON from another node, then:
 ```
-curl -X POST http://localhost:3000/api/register/import \
+curl -X POST http://localhost:4000/api/register/import \
   -H 'Content-Type: application/json' \
   -d @snapshot.json
 ```

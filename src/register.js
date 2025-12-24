@@ -1,6 +1,8 @@
 const { v4: uuidv4 } = require('uuid');
 const forge = require('node-forge');
+
 const crypto = require('crypto'); // Built-in node crypto is faster for hashing
+const { buildMerkleTree, getLeaf } = require('./merkleUtil');
 
 class Register {
   constructor({ name = '', publicKey = null, privateKey = null } = {}) {
@@ -14,6 +16,7 @@ class Register {
     
     this.issuedCerts = new Map(); // Use a Map for O(1) lookup by fingerprint
     this.revokedCerts = new Set(); // Use a Set for fast lookup
+    this.merkleTree = null;
     this.merkleRoot = null;
   }
 
@@ -41,8 +44,8 @@ class Register {
     // 2. Add to local storage
     this.issuedCerts.set(fingerprint, entry);
 
-    // 3. Update the Merkle Root (Simplified for this example)
-    this.updateMerkleRoot();
+    // 3. Update the Merkle Tree and Root
+    this.updateMerkleTree();
     
     return entry;
   }
@@ -53,19 +56,16 @@ class Register {
     return forge.util.encode64(this.privateKey.sign(md));
   }
 
-  /**
-   * THE FEDERATION PILLAR: Update Merkle Root
-   * In a real app, use a library like 'merkletreejs'
-   */
-  updateMerkleRoot() {
-    const hashes = Array.from(this.issuedCerts.values())
-      .map(entry => crypto.createHash('sha256').update(JSON.stringify(entry)).digest('hex'))
-      .sort(); // Sort to ensure deterministic root
-
-    // Simple hash chain logic as a placeholder for a full tree
-    this.merkleRoot = hashes.reduce((acc, hash) => {
-      return crypto.createHash('sha256').update(acc + hash).digest('hex');
-    }, "GENESIS_ROOT");
+  // Update the Merkle tree and root
+  updateMerkleTree() {
+    const entries = Array.from(this.issuedCerts.values());
+    if (entries.length === 0) {
+      this.merkleTree = null;
+      this.merkleRoot = null;
+      return;
+    }
+    this.merkleTree = buildMerkleTree(entries);
+    this.merkleRoot = this.merkleTree.getHexRoot();
   }
 
   // Export a "Snapshot" for other nodes
@@ -101,8 +101,8 @@ class Register {
         this.issuedCerts.set(entry.fingerprint, entry);
       }
     }
-    // 4. Update local Merkle root
-    this.updateMerkleRoot();
+    // 4. Update local Merkle tree/root
+    this.updateMerkleTree();
   }
 }
 

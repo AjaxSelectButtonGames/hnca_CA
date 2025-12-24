@@ -1,3 +1,40 @@
+// Merkle proof endpoints
+const { getLeaf } = require('./merkleUtil');
+
+// Get Merkle proof for a cert fingerprint
+app.get('/api/register/proof/:fingerprint', (req, res) => {
+  const { fingerprint } = req.params;
+  const entry = register.issuedCerts.get(fingerprint);
+  if (!entry) {
+    return res.status(404).json({ error: 'Certificate not found' });
+  }
+  if (!register.merkleTree) {
+    return res.status(500).json({ error: 'Merkle tree not available' });
+  }
+  const leaf = getLeaf(entry);
+  const proof = register.merkleTree.getHexProof(leaf);
+  res.json({
+    fingerprint,
+    merkleRoot: register.merkleRoot,
+    proof,
+    entry
+  });
+});
+
+// Verify a Merkle proof (client submits entry, proof, and root)
+app.post('/api/register/verify-proof', (req, res) => {
+  const { entry, proof, merkleRoot } = req.body;
+  if (!entry || !proof || !merkleRoot) {
+    return res.status(400).json({ error: 'Missing entry, proof, or merkleRoot' });
+  }
+  const { MerkleTree } = require('merkletreejs');
+  const keccak256 = require('keccak256');
+  const leaf = getLeaf(entry);
+  // For verification, we need the same hash function and options
+  const tree = new MerkleTree([leaf], keccak256, { sortPairs: true });
+  const valid = MerkleTree.verify(proof, leaf, merkleRoot, keccak256, { sortPairs: true });
+  res.json({ valid });
+});
 // HNCA Certificate Authority Server Skeleton
 // Entry point for the Node.js CA server
 
