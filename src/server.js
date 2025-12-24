@@ -7,7 +7,12 @@ const Register = require('./register');
 const certUtil = require('./certUtil');
 const forge = require('node-forge');
 const app = express();
-const PORT = process.env.PORT || 3000;
+// Allow port override via env or command-line argument
+let PORT = process.env.PORT || 4000;
+const argPort = process.argv.find(arg => arg.startsWith('--port='));
+if (argPort) {
+  PORT = parseInt(argPort.split('=')[1], 10) || PORT;
+}
 
 // Initialize the Register (in-memory for now)
 const registerKeyPair = certUtil.generateKeyPair();
