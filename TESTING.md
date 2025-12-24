@@ -57,18 +57,40 @@ curl -X POST http://localhost:4000/api/certificates/issue \
   }'
 ```
 
-## 7. Export Register Snapshot (Federation)
-```
-curl http://localhost:4000/api/register/snapshot
-```
 
-## 8. Import a Register Snapshot
-Save a snapshot JSON from another node, then:
+## 7. Merkle Proofs & Federation
+
+### 7.1. Get Merkle Proof for a Certificate
+Replace <fingerprint> with the actual fingerprint from a log entry:
 ```
-curl -X POST http://localhost:4000/api/register/import \
+curl http://localhost:4000/api/register/proof/<fingerprint>
+```
+This returns the Merkle proof, root, and entry for that certificate.
+
+### 7.2. Verify a Merkle Proof
+You can verify a proof (from above) using:
+```
+curl -X POST http://localhost:4000/api/register/verify-proof \
   -H 'Content-Type: application/json' \
-  -d @snapshot.json
+  -d '{
+    "entry": { ... },
+    "proof": [ ... ],
+    "merkleRoot": "..."
+  }'
 ```
+You should receive `{ "valid": true }` if the proof is correct.
+
+### 7.3. Federation: Syncing Registers
+1. On Node A, get the Merkle root:
+   ```
+   curl http://localhost:4000/api/register/snapshot
+   ```
+   (Or just use the root from any proof response)
+2. On Node B, request proofs for any missing fingerprints from Node A.
+3. Use `/api/register/verify-proof` to verify proofs before accepting entries.
+4. Add new entries to Node B's register if proofs are valid.
+
+This allows efficient, cryptographically secure federation without full log transfer.
 
 ## 9. Troubleshooting
 - Check server logs for errors.
